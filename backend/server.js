@@ -1,100 +1,84 @@
+// server.js
 const express = require("express");
 const cors = require("cors");
-const bodyParser = require("body-parser");
-
+const mongoose = require("mongoose");
+const User = require("./models/User");
 const { Keychain } = require("./password-manager");
 
-let keychain = null;
-let masterPassword = null; // store only in memory
-
 const app = express();
-app.use(cors());
-app.use(bodyParser.json());
 
+// ---------- MIDDLEWARE ----------
+app.use(cors({
+  origin: "http://localhost:5173", // Vite frontend
+  credentials: true
+}));
+app.use(express.json());
 
-// -------- INIT KEYCHAIN --------
-app.post("/init", async (req, res) => {
-    try {
-        masterPassword = req.body.password;
-        keychain = await Keychain.init(masterPassword);
-        res.json({ ok: true });
-    } catch (err) {
-        res.status(500).json({ error: err.toString() });
+// ---------- MONGODB CONNECTION ----------
+mongoose.connect("mongodb+srv://anisekimani:jeBtFIgxsxQ5YMSX@users.amkym5o.mongodb.net/?appName=Users")
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch(err => console.error("❌ MongoDB connection error:", err));
+
+// ---------- SIGNUP ROUTE ----------
+app.post("/signup", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
     }
-});
 
-
-// -------- SET PASSWORD --------
-app.post("/set", async (req, res) => {
-    const { domain, password } = req.body;
-    if (!keychain) return res.status(400).json({ error: "Keychain not initialized" });
-
-    try {
-        await keychain.set(domain, password);
-        res.json({ ok: true });
-    } catch (err) {
-        res.status(500).json({ error: err.toString() });
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: "User already exists" });
     }
+
+    // Initialize new keychain
+    const kc = await Keychain.init(password);
+    const [json, checksum] = await kc.dump();
+
+    // Create new user
+    const user = await User.create({
+      email,
+      keychainJson: json,
+      keychainChecksum: checksum
+    });
+
+    res.json({ success: true, userId: user._id });
+  } catch (e) {
+    console.error("Signup error:", e);
+    res.status(500).json({ error: e.toString() });
+  }
 });
 
+// ---------- LOGIN ROUTE ----------
+app.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-// -------- GET PASSWORD --------
-app.post("/get", async (req, res) => {
-    const { domain } = req.body;
-    if (!keychain) return res.status(400).json({ error: "Keychain not initialized" });
-
-    try {
-        const pwd = await keychain.get(domain);
-        res.json({ password: pwd });
-    } catch (err) {
-        res.status(500).json({ error: err.toString() });
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
     }
-});
 
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ error: "No such user" });
 
-// -------- REMOVE PASSWORD --------
-app.post("/remove", async (req, res) => {
-    const { domain } = req.body;
-    if (!keychain) return res.status(400).json({ error: "Keychain not initialized" });
-
+    // Attempt to load keychain with password
     try {
-        const removed = await keychain.remove(domain);
-        res.json({ removed });
-    } catch (err) {
-        res.status(500).json({ error: err.toString() });
+      await Keychain.load(password, user.keychainJson, user.keychainChecksum);
+    } catch {
+      return res.status(400).json({ error: "Invalid password" });
     }
+
+    // Success
+    res.json({ success: true, userId: user._id });
+  } catch (e) {
+    console.error("Login error:", e);
+    res.status(500).json({ error: e.toString() });
+  }
 });
 
-
-// -------- DUMP KEYCHAIN --------
-app.get("/dump", async (req, res) => {
-    if (!keychain) return res.status(400).json({ error: "Keychain not initialized" });
-
-    try {
-        const [repr, checksum] = await keychain.dump();
-        res.json({ repr, checksum });
-    } catch (err) {
-        res.status(500).json({ error: err.toString() });
-    }
-});
-
-
-// -------- LOAD KEYCHAIN --------
-app.post("/load", async (req, res) => {
-    const { password, repr, checksum } = req.body;
-
-    try {
-        keychain = await Keychain.load(password, repr, checksum);
-        masterPassword = password;
-        res.json({ ok: true });
-    } catch (err) {
-        res.status(500).json({ error: err.toString() });
-    }
-});
-
-
-// -------- START SERVER --------
-const PORT = 3001;
-app.listen(PORT, () => {
-    console.log("Backend running on http://localhost:" + PORT);
-});
+// ---------- START SERVER ----------
+const PORT = 4000;
+app.listen(PORT, () => console.log(`✅ Backend running on :${PORT}`));

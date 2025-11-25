@@ -1,0 +1,13 @@
+/* auth.css */
+
+.auth-title {
+  color: #2E7D32;
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.auth-subtext {
+  color: #555;
+  text-align: center;
+  margin-bottom: 20px;
+}

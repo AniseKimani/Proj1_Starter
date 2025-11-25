@@ -1,0 +1,19 @@
+/* dashboard.css */
+
+.dashboard-container {
+  padding: 40px;
+}
+
+.welcome-box {
+  background: #A5D6A740;
+  padding: 20px;
+  border-radius: 10px;
+  border-left: 6px solid #2E7D32;
+  margin-bottom: 20px;
+}
+
+.dashboard-title {
+  font-size: 26px;
+  color: #2E7D32;
+  margin-bottom: 20px;
+}
