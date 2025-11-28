@@ -1,7 +1,7 @@
 "use strict";
 
 let expect = require('expect.js');
-const { Keychain } = require('../password-manager');
+const { Keychain } = require('../backend/password-manager');
 
 function expectReject(promise) {
     return promise.then(
@@ -113,7 +113,6 @@ describe('Password manager', async function() {
 
     describe('security', async function() {
 
-        // Very basic test to make sure you're not doing the most naive thing
         it("doesn't store domain names and passwords in the clear", async function() {
             let keychain = await Keychain.init(password);
             let url = 'www.stanford.edu';
@@ -126,7 +125,6 @@ describe('Password manager', async function() {
             expect(contents).not.to.contain(pw);
         });
 
-        // This test won't be graded directly -- it just exists to make sure your
         // dump include a kvs object with all your urls and passwords, because
         // we will be using that in other tests.
         it('includes a kvs object in the serialized dump', async function() {
