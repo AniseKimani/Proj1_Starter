@@ -111,7 +111,7 @@ function Dashboard() {
   };
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", background: "#faf6f7ff" }}>
+    <Box sx={{ display: "flex", minHeight: "100vh", background: "white" }}>
       {/* SIDEBAR */}
       <Box
         sx={{
