@@ -1,6 +1,6 @@
 // src/pages/Login.jsx
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import "../styles/auth.css";
 
 export default function Login() {
@@ -17,7 +17,7 @@ export default function Login() {
       const res = await fetch("http://localhost:4000/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
@@ -27,25 +27,33 @@ export default function Login() {
         return;
       }
 
-      // Save userId to localStorage so Dashboard can use it
       if (data.userId) {
         localStorage.setItem("userId", data.userId);
       }
-      // If you later expand to token-based auth, save token here as well:
-      // if (data.token) localStorage.setItem("token", data.token);
 
       setMessage("Login successful! Redirecting...");
-      // use navigate from react-router
       setTimeout(() => navigate("/dashboard"), 400);
     } catch (err) {
-      console.error("Login network error:", err);
       setMessage("Network error. Is the backend running?");
     }
   }
 
   return (
-    <div className="center-page">
-      <div className="card">
+    <div className="auth-wrapper">
+
+      {/* Faux Navbar */}
+      <div className="auth-navbar">
+        <div className="nav-logo">🔐 Vault</div>
+        <div className="nav-menu">
+          <p>Home</p>
+          <p>About</p>
+          <p>Contact</p>
+          <p>Help</p>
+        </div>
+      </div>
+
+      {/* LEFT - Login card */}
+      <div className="auth-card">
         <h2 className="auth-title">Welcome Back</h2>
         <p className="auth-subtext">Login to continue</p>
 
@@ -54,7 +62,7 @@ export default function Login() {
             type="email"
             placeholder="Email"
             value={email}
-            onChange={e => setEmail(e.target.value)}
+            onChange={(e) => setEmail(e.target.value)}
             required
           />
 
@@ -62,7 +70,7 @@ export default function Login() {
             type="password"
             placeholder="Password"
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={(e) => setPassword(e.target.value)}
             required
           />
 
@@ -75,9 +83,16 @@ export default function Login() {
           </p>
         )}
 
-        <p style={{ marginTop: "15px", textAlign: "center" }}>
-          New user? <a href="/">Register</a>
+        <p className="auth-switch">
+          New user? <Link to="/register">Register</Link>
         </p>
+      </div>
+
+      {/* RIGHT - Welcome text */}
+      <div className="auth-welcome">
+        <h1>The <span>Vault</span></h1>
+        <p>Store, encrypt, and protect your most important passwords with elegance, privacy, and unmatched security.</p>
+        <div className="welcome-btn">Get Started</div>
       </div>
     </div>
   );

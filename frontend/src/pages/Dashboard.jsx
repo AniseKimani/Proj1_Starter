@@ -1,7 +1,20 @@
 // src/pages/Dashboard.jsx
 import React, { useEffect, useState } from "react";
-import { Box, Button, TextField, Typography, Paper, Stack, IconButton } from "@mui/material";
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  Paper,
+  Stack,
+  IconButton,
+  Tooltip,
+} from "@mui/material";
+
 import DeleteIcon from "@mui/icons-material/Delete";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+
 import api from "../api/axios";
 import { useNavigate } from "react-router-dom";
 
@@ -15,144 +28,271 @@ function Dashboard() {
   const [domain, setDomain] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+
   const [items, setItems] = useState([]);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    if (!userId) {
-      navigate("/login");
-      return;
-    }
-    // do not auto-fetch until user unlocks with master password
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  const [revealed, setRevealed] = useState({}); // password visibility map
 
-  // Unlock (fetch all credentials) with master password
+  useEffect(() => {
+    if (!userId) navigate("/login");
+  }, [userId, navigate]);
+
   const unlock = async () => {
     if (!userId || !masterPassword) return;
     try {
-      const res = await api.post("/passwords/get-secure", { userId, masterPassword });
+      const res = await api.post("/passwords/get-secure", {
+        userId,
+        masterPassword,
+      });
+
       setItems(res.data.items || []);
       setIsUnlocked(true);
       setMessage("");
     } catch (e) {
-      console.error("Unlock error:", e);
-      const errMsg = e.response?.data?.error || "Failed to unlock. Check your master password.";
+      const errMsg =
+        e.response?.data?.error ||
+        "Failed to unlock. Check your master password.";
       setMessage(errMsg);
       setIsUnlocked(false);
     }
   };
 
-  // ---------------- ADD PASSWORD ----------------
   const handleAdd = async () => {
     if (!domain || !username || !password) return;
-    if (!userId || !masterPassword) {
-      setMessage("Enter master password and unlock first.");
-      return;
-    }
 
     try {
-      await api.post("/password/add-secure", { userId, masterPassword, domain, username, password });
+      await api.post("/password/add-secure", {
+        userId,
+        masterPassword,
+        domain,
+        username,
+        password,
+      });
+
       setDomain("");
       setUsername("");
       setPassword("");
-      await unlock(); // refresh list
+      await unlock();
     } catch (e) {
-      console.error("Add error:", e);
       const errMsg = e.response?.data?.error || "Failed to add credential.";
       setMessage(errMsg);
     }
   };
 
-  // ---------------- DELETE PASSWORD ----------------
   const handleDelete = async (domainToDelete) => {
-    if (!userId || !masterPassword) {
-      setMessage("Enter master password and unlock first.");
-      return;
-    }
-
     try {
-      await api.post("/password/delete-secure", { userId, masterPassword, domain: domainToDelete });
+      await api.post("/password/delete-secure", {
+        userId,
+        masterPassword,
+        domain: domainToDelete,
+      });
+
       await unlock();
     } catch (e) {
-      console.error("Delete error:", e);
-      const errMsg = e.response?.data?.error || "Failed to delete credential.";
+      const errMsg =
+        e.response?.data?.error || "Failed to delete credential.";
       setMessage(errMsg);
     }
   };
 
-  // ---------------- LOGOUT ----------------
+  const toggleReveal = (domainName) => {
+    setRevealed((prev) => ({
+      ...prev,
+      [domainName]: !prev[domainName],
+    }));
+  };
+
   const handleLogout = () => {
-    // clear only client-side session info; do NOT store masterPassword - just clear it
     setMasterPassword("");
-    setIsUnlocked(false);
     setItems([]);
-    // optionally redirect to login
+    setIsUnlocked(false);
     navigate("/login");
   };
 
   return (
-    <Box sx={{ maxWidth: 700, mx: "auto", mt: 6 }}>
-      <Typography variant="h4" fontWeight="bold" textAlign="center" mb={3}>
-        Password Manager 🔐
-      </Typography>
-
-      {/* Unlock panel */}
-      <Paper sx={{ p: 3, mb: 4 }}>
-        <Typography variant="h6" mb={2}>
-          Unlock Vault
+    <Box sx={{ display: "flex", minHeight: "100vh", background: "#faf6f7ff" }}>
+      {/* SIDEBAR */}
+      <Box
+        sx={{
+          width: 240,
+          background: "linear-gradient(135deg, #d12f6b, #ff78a5)",
+          color: "white",
+          p: 3,
+          display: "flex",
+          flexDirection: "column",
+          gap: 3,
+        }}
+      >
+        <Typography variant="h5" fontWeight="bold">
+          Vault
         </Typography>
-        <Stack spacing={2}>
-          <TextField
-            label="Master Password (not stored)"
-            type="password"
-            value={masterPassword}
-            onChange={(e) => setMasterPassword(e.target.value)}
-          />
-          <Button variant="contained" onClick={unlock}>Unlock</Button>
-          <Button variant="outlined" onClick={handleLogout}>Logout</Button>
 
-          {message && <Typography color="error">{message}</Typography>}
-        </Stack>
-      </Paper>
+        <Button
+          variant="outlined"
+          sx={{ color: "white", borderColor: "white" }}
+        >
+          Dashboard
+        </Button>
 
-      {isUnlocked && (
-        <>
-          {/* ADD FORM */}
-          <Paper sx={{ p: 3, mb: 4 }}>
-            <Typography variant="h6" mb={2}>Add New Credential</Typography>
-            <Stack spacing={2}>
-              <TextField label="Domain (e.g. facebook.com)" value={domain} onChange={(e) => setDomain(e.target.value)} />
-              <TextField label="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
-              <TextField label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-              <Button variant="contained" onClick={handleAdd}>Add Credential</Button>
-            </Stack>
-          </Paper>
+        <Button
+          variant="outlined"
+          sx={{ color: "white", borderColor: "white" }}
+        >
+          Settings
+        </Button>
 
-          {/* PASSWORD LIST */}
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" mb={2}>Saved Passwords</Typography>
+        <Button
+          variant="outlined"
+          sx={{ color: "white", borderColor: "white" }}
+          onClick={handleLogout}
+        >
+          Logout
+        </Button>
+      </Box>
 
-            {items.length === 0 && <Typography>No passwords saved yet.</Typography>}
+      {/* MAIN */}
+      <Box sx={{ flexGrow: 1, p: 5 }}>
+        <Typography
+          variant="h4"
+          fontWeight="bold"
+          mb={3}
+          sx={{ color: "#b01756" }}
+        >
+          Password Manager 🔐
+        </Typography>
 
-            <Stack spacing={2}>
-              {items.map((item) => (
-                <Paper key={item.domain} sx={{ p: 2, display: "flex", justifyContent: "space-between" }}>
-                  <Box>
-                    <Typography><b>Domain:</b> {item.domain}</Typography>
-                    <Typography><b>Username:</b> {item.username}</Typography>
-                    <Typography><b>Password:</b> {item.password}</Typography>
-                  </Box>
+        {/* Unlock Panel */}
+        <Paper sx={{ p: 3, mb: 4, borderLeft: "5px solid #d12f6b" }}>
+          <Typography variant="h6" mb={2} sx={{ color: "#d12f6b" }}>
+            Unlock Vault
+          </Typography>
 
-                  <IconButton color="error" onClick={() => handleDelete(item.domain)}>
-                    <DeleteIcon />
-                  </IconButton>
-                </Paper>
-              ))}
-            </Stack>
-          </Paper>
-        </>
-      )}
+          <Stack spacing={2}>
+            <TextField
+              label="Master Password (not stored)"
+              type="password"
+              value={masterPassword}
+              onChange={(e) => setMasterPassword(e.target.value)}
+            />
+
+            <Button
+              variant="contained"
+              sx={{ background: "#d12f6b" }}
+              onClick={unlock}
+            >
+              Unlock
+            </Button>
+
+            {message && <Typography color="error">{message}</Typography>}
+          </Stack>
+        </Paper>
+
+        {/* SHOW ONLY IF UNLOCKED */}
+        {isUnlocked && (
+          <>
+            {/* Add Credential */}
+            <Paper sx={{ p: 3, mb: 4, borderLeft: "5px solid #ff78a5" }}>
+              <Typography variant="h6" mb={2} sx={{ color: "#ff78a5" }}>
+                Add New Credential
+              </Typography>
+
+              <Stack spacing={2}>
+                <TextField
+                  label="Domain"
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                />
+                <TextField
+                  label="Username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+                <TextField
+                  label="Password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+
+                <Button
+                  variant="contained"
+                  sx={{ background: "#ff78a5" }}
+                  onClick={handleAdd}
+                >
+                  Add
+                </Button>
+              </Stack>
+            </Paper>
+
+            {/* Password List */}
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" mb={2} sx={{ color: "#b01756" }}>
+                Saved Passwords
+              </Typography>
+
+              {items.length === 0 && (
+                <Typography>No passwords saved yet.</Typography>
+              )}
+
+              <Stack spacing={2}>
+                {items.map((item) => (
+                  <Paper
+                    key={item.domain}
+                    sx={{
+                      p: 2,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      borderLeft: "5px solid #d12f6b",
+                    }}
+                  >
+                    <Box>
+                      <Typography>
+                        <b>Domain:</b> {item.domain}
+                      </Typography>
+                      <Typography>
+                        <b>Username:</b> {item.username}
+                      </Typography>
+
+                      <Typography sx={{ fontFamily: "monospace" }}>
+                        <b>Password:</b>{" "}
+                        {revealed[item.domain]
+                          ? item.password
+                          : "••••••••••"}
+                      </Typography>
+                    </Box>
+
+                    <Stack direction="row" spacing={1}>
+                      <Tooltip
+                        title={revealed[item.domain] ? "Hide" : "Show"}
+                      >
+                        <IconButton
+                          onClick={() => toggleReveal(item.domain)}
+                          sx={{ color: "#d12f6b" }}
+                        >
+                          {revealed[item.domain] ? (
+                            <VisibilityOffIcon />
+                          ) : (
+                            <VisibilityIcon />
+                          )}
+                        </IconButton>
+                      </Tooltip>
+
+                      <IconButton
+                        color="error"
+                        onClick={() => handleDelete(item.domain)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            </Paper>
+          </>
+        )}
+      </Box>
     </Box>
   );
 }
